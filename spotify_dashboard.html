@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>Spotify 2023 音乐可视化 Dashboard</title>
+
+    <!-- ECharts & PapaParse -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #020617;
+            --bg-soft: #050816;
+            --bg-card: #0b1120;
+            --border-subtle: rgba(148, 163, 184, 0.18);
+            --text-main: #e5e7eb;
+            --text-sub: #9ca3af;
+            --accent: #22c55e;
+            --accent-soft: rgba(34, 197, 94, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: radial-gradient(circle at top left, #020617, #000);
+            color: var(--text-main);
+        }
+
+        .page-root {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 18px 32px 14px;
+            background: radial-gradient(circle at top left, #111827, #020617);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-logo {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            background: radial-gradient(circle at 30% 0%, #22c55e, #16a34a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #022c22;
+            font-weight: 800;
+            font-size: 16px;
+        }
+
+        .brand-text h1 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: 0.02em;
+        }
+
+        .brand-text p {
+            margin: 2px 0 0;
+            color: var(--text-sub);
+            font-size: 12px;
+        }
+
+        .header-meta {
+            text-align: right;
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .tabs {
+            margin-top: 8px;
+            display: flex;
+            justify-content: space-evenly;
+            gap: 10px;
+        }
+
+        .tab-button {
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-sub);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+
+        .tab-button:hover {
+            background: rgba(15, 23, 42, 0.9);
+            border-color: rgba(148, 163, 184, 0.6);
+            color: #f9fafb;
+        }
+
+        .tab-button.active {
+            background: var(--accent-soft);
+            border-color: var(--accent);
+            color: #bbf7d0;
+            font-weight: 600;
+        }
+
+        main {
+            flex: 1;
+            padding: 16px 24px 28px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .kpi {
+            background: radial-gradient(circle at top left, #111827, #020617);
+            border-radius: 12px;
+            padding: 10px 12px;
+            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(15, 23, 42, 0.9);
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            color: var(--text-sub);
+            margin-bottom: 4px;
+        }
+
+        .kpi-value {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .kpi-desc {
+            font-size: 10px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .card {
+            background: radial-gradient(circle at top left, #020617, #020617);
+            border-radius: 14px;
+            padding: 10px 12px 8px;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
+            border: 1px solid rgba(15, 23, 42, 0.95);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .card-subtitle {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .pill {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            color: var(--text-sub);
+        }
+
+        .chart {
+            flex: 1;
+        }
+
+        .single-chart-wrap {
+            height: 560px;
+        }
+
+        .overview-card {
+            height: 520px;
+        }
+
+        .overview-chart {
+            flex: 1;
+            min-height: 360px;
+        }
+
+        .overview-text {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(148,163,184,0.3);
+            font-size: 11px;
+            color: var(--text-sub);
+            line-height: 1.7;
+        }
+
+        /* 雷达页布局：纵向排布，上面选歌，下面雷达图 */
+        .radar-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .select-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        select {
+            background: #020617;
+            color: var(--text-main);
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* 雷达页歌曲信息 UI 强化 */
+        .card-body-narrow {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .song-info-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .hint-text {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .info-chip {
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(148,163,184,0.35);
+            background: radial-gradient(circle at top left, #020617, #020617);
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-sub);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+            white-space: nowrap;
+        }
+
+        .info-chip .label {
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        .info-chip .value {
+            font-size: 11px;
+            color: #e5e7eb;
+        }
+
+        .info-chip.primary {
+            border-color: var(--accent);
+            background: radial-gradient(circle at top left, #064e3b, #020617);
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px 0 14px;
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        @media (max-width: 1024px) {
+            .kpi-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .single-chart-wrap,
+            .overview-card {
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="page-root">
+    <header>
+        <div class="header-top">
+            <div class="brand">
+                <div class="brand-logo">♪</div>
+                <div class="brand-text">
+                    <h1>Spotify 2023 音乐可视分析</h1>
+                    <p>基于 spotify-2023.csv · 可视化技术课程大作业（崔嘉铭，史博文，丁洪亮）</p>
+                </div>
+            </div>
+            <div class="header-meta">
+                <div>数据来源：Kaggle Spotify 2023 数据集</div>
+                <div>展示内容：播放量结构 · 情绪空间 · 节奏结构 · 音频特征画像</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" data-tab="overview">总览</button>
+            <button class="tab-button" data-tab="emotion">情绪空间</button>
+            <button class="tab-button" data-tab="tempo">节奏结构</button>
+            <button class="tab-button" data-tab="radar">音频特征雷达</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Tab 1：总览 -->
+        <section id="tab-overview" class="tab-content active">
+            <div class="kpi-row">
+                <div class="kpi">
+                    <div class="kpi-label">歌曲数量</div>
+                    <div class="kpi-value" id="kpi-count">-</div>
+                    <div class="kpi-desc">数据集中包含的热门歌曲总数</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">总播放量（streams）</div>
+                    <div class="kpi-value" id="kpi-streams">-</div>
+                    <div class="kpi-desc">所有歌曲 streams 字段之和</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">平均情绪值（valence）</div>
+                    <div class="kpi-value" id="kpi-valence">-</div>
+                    <div class="kpi-desc">0 代表偏悲伤，100 代表偏快乐</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">平均舞蹈性（danceability）</div>
+                    <div class="kpi-value" id="kpi-dance">-</div>
+                    <div class="kpi-desc">音乐可跳舞程度的平均水平（0-100）</div>
+                </div>
+            </div>
+
+            <div class="card overview-card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Top 20 热门歌曲（按 streams 排序）</div>
+                        <div class="card-subtitle">
+                            点击某一首歌可以在“音频特征雷达”标签中查看它的特征画像。
+                        </div>
+                    </div>
+                    <div class="pill">播放量排行榜</div>
+                </div>
+                <div id="chart-top-streams" class="chart overview-chart"></div>
+                <div class="overview-text">
+                    · 纵轴为 2023 年在 Spotify 上最流行的前 20 首歌曲，按播放量从高到低排序。<br/>
+                    · 横轴为播放量，条形长度直观体现头部歌曲的“吸粉能力”。<br/>
+                    · 可以清晰看到长尾结构：少数头部歌曲占据了巨大的流量，而多数歌曲集中在中等区间。<br/>
+                    · 这些歌曲将作为后续情绪空间、节奏结构和多维特征分析的代表样本，用于刻画 2023 年流行音乐生态。
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 2：情绪空间 -->
+        <section id="tab-emotion" class="tab-content">
+            <div class="single-chart-wrap card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">情绪空间：Valence × Energy</div>
+                        <div class="card-subtitle">
+                            每个点是一首歌，横轴为情绪（悲伤⇢快乐），纵轴为能量；颜色代表舞蹈性，越亮越适合跳舞。
+                        </div>
+                    </div>
+                    <div class="pill">情绪分布</div>
+                </div>
+                <div id="chart-emotion" class="chart"></div>
+            </div>
+        </section>
+
+        <!-- Tab 3：节奏结构 -->
+        <section id="tab-tempo" class="tab-content">
+            <div class="single-chart-wrap card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">节奏与能量：BPM × Energy</div>
+                        <div class="card-subtitle">
+                            横轴为节奏速度（BPM），纵轴为能量感。点的大小随播放量增大而增大，用来观察“强者恒强”的头部效应。
+                        </div>
+                    </div>
+                    <div class="pill">节奏结构</div>
+                </div>
+                <div id="chart-tempo" class="chart"></div>
+            </div>
+        </section>
+
+        <!-- Tab 4：雷达 -->
+        <section id="tab-radar" class="tab-content">
+            <div class="radar-layout">
+                <!-- 上：选歌 + 信息 -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">选择单曲</div>
+                            <div class="card-subtitle">
+                                从 Top 热门歌曲中选择一首，与全局平均进行多维特征对比。
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body-narrow">
+                        <div class="select-wrap">
+                            <span class="card-subtitle">选择歌曲：</span>
+                            <select id="song-select"></select>
+                        </div>
+                        <div id="song-info" class="song-info-row"></div>
+                    </div>
+                </div>
+
+                <!-- 下：雷达图 -->
+                <div class="card single-chart-wrap">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">音乐特征雷达图：单曲 vs 全局平均</div>
+                            <div class="card-subtitle">
+                                维度包括舞蹈性、情绪、能量、原声度、器乐度、现场感与口语化程度。
+                            </div>
+                        </div>
+                        <div class="pill">多维画像</div>
+                    </div>
+                    <div id="chart-radar" class="chart"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        Spotify 2023 Music Analytics · Visualization Project · HTML Tab Dashboard
+    </footer>
+</div>
+
+<script>
+    // ===== Tab 切换 =====
+    document.addEventListener("DOMContentLoaded", function () {
+        const buttons = document.querySelectorAll(".tab-button");
+        const tabs = document.querySelectorAll(".tab-content");
+
+        buttons.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const target = btn.dataset.tab;
+
+                buttons.forEach((b) => b.classList.remove("active"));
+                btn.classList.add("active");
+
+                tabs.forEach((t) => {
+                    t.classList.toggle("active", t.id === "tab-" + target);
+                });
+
+                if (target === "overview" && topStreamsChart) topStreamsChart.resize();
+                if (target === "emotion"  && emotionChart)     emotionChart.resize();
+                if (target === "tempo"    && tempoChart)       tempoChart.resize();
+                if (target === "radar"    && radarChart)       radarChart.resize();
+            });
+        });
+    });
+
+    // ===== 全局变量 =====
+    let allData = [];
+    let avgProfile = null;
+    let topStreamsData = [];
+    let topStreamsChart, emotionChart, tempoChart, radarChart;
+
+    // ===== CSV 读取 =====
+    window.addEventListener("load", function () {
+        Papa.parse("spotify-2023.csv", {
+            download: true,
+            header: true,
+            dynamicTyping: true,
+            complete: function (results) {
+                allData = results.data.filter(
+                    (row) => row["track_name"] && !isNaN(Number(row["streams"]))
+                );
+                console.log("Loaded rows:", allData.length);
+                computeKPI();
+                initCharts();
+            },
+            error: function (err) {
+                console.error("CSV 解析失败:", err);
+                alert("无法读取 spotify-2023.csv，请确认文件与本 HTML 在同一目录，并通过本地服务器访问。");
+            },
+        });
+    });
+
+    // ===== KPI & 平均特征 =====
+    function computeKPI() {
+        const count = allData.length;
+        const totalStreams = allData.reduce(
+            (sum, r) => sum + (Number(r["streams"]) || 0),
+            0
+        );
+        const avgValence =
+            allData.reduce(
+                (sum, r) => sum + (Number(r["valence_%"]) || 0),
+                0
+            ) / (count || 1);
+        const avgDance =
+            allData.reduce(
+                (sum, r) => sum + (Number(r["danceability_%"]) || 0),
+                0
+            ) / (count || 1);
+
+        document.getElementById("kpi-count").textContent = count.toString();
+        document.getElementById("kpi-streams").textContent =
+            formatNumber(totalStreams);
+        document.getElementById("kpi-valence").textContent =
+            avgValence.toFixed(1);
+        document.getElementById("kpi-dance").textContent =
+            avgDance.toFixed(1);
+
+        const keys = [
+            "danceability_%",
+            "valence_%",
+            "energy_%",
+            "acousticness_%",
+            "instrumentalness_%",
+            "liveness_%",
+            "speechiness_%",
+        ];
+        avgProfile = {};
+        keys.forEach((k) => {
+            avgProfile[k] =
+                allData.reduce(
+                    (sum, r) => sum + (Number(r[k]) || 0),
+                    0
+                ) / (count || 1);
+        });
+    }
+
+    // ===== 工具：显示错误 =====
+    function showError(domId, msg) {
+        const dom = document.getElementById(domId);
+        dom.innerHTML =
+            '<div style="color:#9ca3af;font-size:12px;padding:12px;">' + msg + "</div>";
+    }
+
+    // ===== 初始化图表 =====
+    function initCharts() {
+        topStreamsChart = echarts.init(
+            document.getElementById("chart-top-streams")
+        );
+        emotionChart = echarts.init(
+            document.getElementById("chart-emotion")
+        );
+        tempoChart = echarts.init(
+            document.getElementById("chart-tempo")
+        );
+        radarChart = echarts.init(
+            document.getElementById("chart-radar")
+        );
+
+        // 先初始化雷达基础配置，再建 Top20，防止 updateRadarForSong 报错
+        try { buildRadarBase(); }
+        catch (e) {
+            console.error("雷达图错误：", e);
+            showError("chart-radar", "雷达图绘制出错，请检查各 *_% 特征字段。");
+        }
+
+        try { buildTopStreams(); } 
+        catch (e) {
+            console.error("Top20 图错误：", e);
+            showError("chart-top-streams", "Top20 图绘制出错，请检查 streams 字段。");
+        }
+
+        try { buildEmotionScatter(); } 
+        catch (e) {
+            console.error("情绪散点图错误：", e);
+            showError("chart-emotion", "情绪散点图绘制出错，请检查 valence_% / energy_% / danceability_% 字段。");
+        }
+
+        try { buildTempoScatter(); } 
+        catch (e) {
+            console.error("BPM 图错误：", e);
+            showError("chart-tempo", "BPM × Energy 散点图绘制出错，请检查 bpm / energy_% 字段。");
+        }
+
+        window.addEventListener("resize", function () {
+            topStreamsChart.resize();
+            emotionChart.resize();
+            tempoChart.resize();
+            radarChart.resize();
+        });
+    }
+
+    // ===== 图 1：Top20 =====
+    function buildTopStreams() {
+        topStreamsData = [...allData]
+            .sort((a, b) => Number(b["streams"]) - Number(a["streams"]))
+            .slice(0, 20);
+
+        // 只显示歌曲名，不显示歌手
+        const names = topStreamsData.map(
+            (r) => r["track_name"]
+        );
+        const streams = topStreamsData.map((r) => Number(r["streams"]) || 0);
+
+        const option = {
+            tooltip: {
+                trigger: "axis",
+                axisPointer: { type: "shadow" },
+                formatter: function (params) {
+                    const p = params[0];
+                    const row = topStreamsData[p.dataIndex];
+                    return `
+<strong>${row["track_name"]}</strong><br/>
+艺术家：${row["artist(s)_name"]}<br/>
+Streams：${formatNumber(row["streams"])}<br/>
+Spotify 歌单数：${row["in_spotify_playlists"] || 0}<br/>
+Spotify 榜单数：${row["in_spotify_charts"] || 0}
+`;
+                },
+            },
+            grid: { left: 160, right: 16, top: 18, bottom: 24 },
+            xAxis: {
+                type: "value",
+                axisLabel: {
+                    color: "#9ca3af",
+                    formatter: (v) => formatShortNumber(v),
+                },
+                splitLine: {
+                    lineStyle: { color: "rgba(148,163,184,0.12)" },
+                },
+            },
+            yAxis: {
+                type: "category",
+                inverse: true,
+                data: names,
+                axisLabel: {
+                    color: "#e5e7eb",
+                    fontSize: 11,
+                    formatter: (val) =>
+                        val.length > 40 ? val.slice(0, 40) + "…" : val,
+                },
+            },
+            series: [
+                {
+                    type: "bar",
+                    data: streams,
+                    barWidth: 12,
+                    itemStyle: {
+                        borderRadius: [0, 8, 8, 0],
+                        color: new echarts.graphic.LinearGradient(1, 0, 0, 1, [
+                            { offset: 0, color: "#22c55e" },
+                            { offset: 1, color: "#0ea5e9" },
+                        ]),
+                    },
+                },
+            ],
+        };
+
+        topStreamsChart.setOption(option);
+
+        // 点击条形图 → 切到雷达 Tab & 更新单曲
+        topStreamsChart.on("click", function (params) {
+            const row = topStreamsData[params.dataIndex];
+            const sel = document.getElementById("song-select");
+            sel.value = row["track_name"];
+            updateRadarForSong(row["track_name"]);
+            document.querySelector('[data-tab="radar"]').click();
+        });
+
+        // 下拉框（Top100 歌曲）
+        const select = document.getElementById("song-select");
+        select.innerHTML = "";
+        const optionsData = [...allData]
+            .sort((a, b) => Number(b["streams"]) - Number(a["streams"]))
+            .slice(0, 100);
+
+        optionsData.forEach((r, i) => {
+            const opt = document.createElement("option");
+            opt.value = r["track_name"];
+            opt.textContent = `${i + 1}. ${r["track_name"]} – ${r["artist(s)_name"]}`;
+            select.appendChild(opt);
+        });
+
+        if (optionsData.length > 0) {
+            select.value = optionsData[0]["track_name"];
+            updateRadarForSong(optionsData[0]["track_name"]);
+        }
+
+        select.addEventListener("change", function () {
+            updateRadarForSong(this.value);
+        });
+    }
+
+    // ===== 图 2：情绪散点 =====
+    function buildEmotionScatter() {
+        const points = allData
+            .filter(
+                (r) =>
+                    isFiniteNumber(r["valence_%"]) &&
+                    isFiniteNumber(r["energy_%"]) &&
+                    isFiniteNumber(r["danceability_%"])
+            )
+            .map((r) => ({
+                name: r["track_name"],
+                value: [
+                    Number(r["valence_%"]),
+                    Number(r["energy_%"]),
+                    Number(r["danceability_%"]),
+                    Number(r["streams"]),
+                ],
+                artist: r["artist(s)_name"],
+            }));
+
+        if (points.length === 0) {
+            showError("chart-emotion", "没有可用的情绪特征数据，请检查 valence_% / energy_% / danceability_% 列名。");
+            return;
+        }
+
+        const option = {
+            tooltip: {
+                trigger: "item",
+                formatter: function (p) {
+                    return `
+<strong>${p.data.name}</strong><br/>
+艺术家：${p.data.artist}<br/>
+Valence（情绪）：${p.data.value[0]}<br/>
+Energy（能量）：${p.data.value[1]}<br/>
+Danceability（舞蹈性）：${p.data.value[2]}<br/>
+Streams：${formatNumber(p.data.value[3])}
+`;
+                },
+            },
+            grid: { left: 60, right: 50, top: 60, bottom: 60 },
+
+            xAxis: {
+                type: "value",
+                name: "Valence（情绪：悲伤 → 快乐）",
+                nameTextStyle: { color: "#9ca3af", fontSize: 11 },
+                axisLabel: { color: "#9ca3af" },
+                min: 0,
+                max: 100,
+                splitLine: {
+                    lineStyle: { color: "rgba(148,163,184,0.1)" },
+                },
+            },
+            yAxis: {
+                type: "value",
+                name: "Energy（能量）",
+                nameTextStyle: { color: "#9ca3af", fontSize: 11 },
+                axisLabel: { color: "#9ca3af" },
+                min: 0,
+                max: 100,
+                splitLine: {
+                    lineStyle: { color: "rgba(148,163,184,0.1)" },
+                },
+            },
+            visualMap: {
+                dimension: 2,
+                min: 0,
+                max: 100,
+                calculable: false,
+                orient: "vertical",
+                right: 10,
+                top: 30,
+                text: ["舞蹈性高", "舞蹈性低"],
+                textStyle: { color: "#e5e7eb", fontSize: 10 },
+                inRange: {
+                    color: ["#0ea5e9", "#22c55e", "#eab308"],
+                },
+            },
+            series: [
+                {
+                    type: "scatter",
+                    data: points,
+                    symbolSize: function (val) {
+                        const streams = val[3] || 0;
+                        return 4 + Math.log10(streams + 10) * 1.6;
+                    },
+                    itemStyle: { opacity: 0.85 },
+                },
+            ],
+        };
+
+        emotionChart.setOption(option);
+    }
+
+    // ===== 图 3：BPM × Energy =====
+    function buildTempoScatter() {
+        const points = allData
+            .filter(
+                (r) =>
+                    isFiniteNumber(r["bpm"]) &&
+                    isFiniteNumber(r["energy_%"]) &&
+                    isFiniteNumber(r["streams"])
+            )
+            .map((r) => ({
+                name: r["track_name"],
+                value: [
+                    Number(r["bpm"]),
+                    Number(r["energy_%"]),
+                    Number(r["streams"]),
+                    Number(r["danceability_%"]),
+                ],
+                artist: r["artist(s)_name"],
+            }));
+
+        if (points.length === 0) {
+            showError("chart-tempo", "没有可用的 BPM / Energy 数据，请检查 bpm / energy_% 列名。");
+            return;
+        }
+
+        const bpmList = points.map((p) => p.value[0]);
+        const bpmMin = Math.min(...bpmList);
+        const bpmMax = Math.max(...bpmList);
+
+        const option = {
+            tooltip: {
+                trigger: "item",
+                formatter: function (p) {
+                    return `
+<strong>${p.data.name}</strong><br/>
+艺术家：${p.data.artist}<br/>
+BPM：${p.data.value[0]}<br/>
+Energy：${p.data.value[1]}<br/>
+Danceability：${p.data.value[3]}<br/>
+Streams：${formatNumber(p.data.value[2])}
+`;
+                },
+            },
+            grid: { left: 60, right: 50, top: 60, bottom: 60 },
+
+            xAxis: {
+                type: "value",
+                name: "BPM（节奏快慢）",
+                nameTextStyle: { color: "#9ca3af", fontSize: 11 },
+                axisLabel: { color: "#9ca3af" },
+                min: Math.floor(bpmMin / 10) * 10,
+                max: Math.ceil(bpmMax / 10) * 10,
+                splitLine: {
+                    lineStyle: { color: "rgba(148,163,184,0.08)" },
+                },
+            },
+            yAxis: {
+                type: "value",
+                name: "Energy（能量）",
+                nameTextStyle: { color: "#9ca3af", fontSize: 11 },
+                axisLabel: { color: "#9ca3af" },
+                min: 0,
+                max: 100,
+                splitLine: {
+                    lineStyle: { color: "rgba(148,163,184,0.08)" },
+                },
+            },
+            series: [
+                {
+                    type: "scatter",
+                    data: points,
+                    symbolSize: function (val) {
+                        const streams = val[2] || 0;
+                        return 4 + Math.log10(streams + 10) * 2.2;
+                    },
+                    itemStyle: {
+                        color: "#22c55e",
+                        opacity: 0.8,
+                    },
+                },
+            ],
+        };
+
+        tempoChart.setOption(option);
+    }
+
+    // ===== 图 4：雷达基底 =====
+    function buildRadarBase() {
+        const indicators = [
+            { text: "Danceability", max: 100 },
+            { text: "Valence", max: 100 },
+            { text: "Energy", max: 100 },
+            { text: "Acousticness", max: 100 },
+            { text: "Instrumentalness", max: 100 },
+            { text: "Liveness", max: 100 },
+            { text: "Speechiness", max: 100 },
+        ];
+
+        const avgValues = [
+            avgProfile["danceability_%"],
+            avgProfile["valence_%"],
+            avgProfile["energy_%"],
+            avgProfile["acousticness_%"],
+            avgProfile["instrumentalness_%"],
+            avgProfile["liveness_%"],
+            avgProfile["speechiness_%"],
+        ];
+
+        const option = {
+            tooltip: { trigger: "item" },
+            legend: {
+                bottom: 0,
+                textStyle: { color: "#9ca3af", fontSize: 11 },
+                data: ["全局平均", "单曲"],
+            },
+            radar: {
+                indicator: indicators,
+                axisName: { color: "#e5e7eb", fontSize: 10 },
+                splitLine: {
+                    lineStyle: { color: "rgba(148,163,184,0.3)" },
+                },
+                splitArea: { show: false },
+                axisLine: { lineStyle: { color: "rgba(148,163,184,0.3)" } },
+            },
+            series: [
+                {
+                    name: "全局平均",
+                    type: "radar",
+                    data: [{ value: avgValues, name: "全局平均" }],
+                    itemStyle: { color: "#22c55e" },
+                    areaStyle: { opacity: 0.25 },
+                },
+                {
+                    name: "单曲",
+                    type: "radar",
+                    data: [],
+                    itemStyle: { color: "#3b82f6" },
+                    areaStyle: { opacity: 0.25 },
+                },
+            ],
+        };
+
+        radarChart.setOption(option);
+    }
+
+    // ===== 更新雷达单曲 =====
+    function updateRadarForSong(trackName) {
+        const row = allData.find((r) => r["track_name"] === trackName);
+        if (!row) return;
+
+        const songValues = [
+            Number(row["danceability_%"] || 0),
+            Number(row["valence_%"] || 0),
+            Number(row["energy_%"] || 0),
+            Number(row["acousticness_%"] || 0),
+            Number(row["instrumentalness_%"] || 0),
+            Number(row["liveness_%"] || 0),
+            Number(row["speechiness_%"] || 0),
+        ];
+
+        let option = radarChart.getOption();
+        if (!option || !option.series || option.series.length < 2) {
+            buildRadarBase();
+            option = radarChart.getOption();
+        }
+
+        option.series[1].data = [
+            {
+                value: songValues,
+                name: `单曲：${row["track_name"]}`,
+            },
+        ];
+        option.legend[0].data = ["全局平均", `单曲：${row["track_name"]}`];
+        radarChart.setOption(option, true);
+
+        const infoDiv = document.getElementById("song-info");
+        if (infoDiv) {
+            infoDiv.innerHTML = `
+        <div class="info-chip primary">
+            <span class="label">TRACK</span>
+            <span class="value">${row["track_name"]}</span>
+        </div>
+        <div class="info-chip">
+            <span class="label">ARTIST</span>
+            <span class="value">${row["artist(s)_name"]}</span>
+        </div>
+        <div class="info-chip">
+            <span class="label">RELEASE</span>
+            <span class="value">${row["released_year"]}-${row["released_month"]}-${row["released_day"]}</span>
+        </div>
+        <div class="info-chip">
+            <span class="label">STREAMS</span>
+            <span class="value">${formatNumber(row["streams"])}</span>
+        </div>
+        <div class="info-chip">
+            <span class="label">BPM / KEY</span>
+            <span class="value">${row["bpm"]} · ${row["key"] || "-"} ${row["mode"] || ""}</span>
+        </div>
+    `;
+        }
+    }
+
+    // ===== 工具函数 =====
+    function formatNumber(num) {
+        if (!num && num !== 0) return "-";
+        return Number(num).toLocaleString("en-US");
+    }
+    function formatShortNumber(num) {
+        num = Number(num) || 0;
+        if (num >= 1e9) return (num / 1e9).toFixed(1) + "B";
+        if (num >= 1e6) return (num / 1e6).toFixed(1) + "M";
+        if (num >= 1e3) return (num / 1e3).toFixed(1) + "K";
+        return num.toString();
+    }
+    function isFiniteNumber(v) {
+        return typeof v === "number" ? isFinite(v) : isFinite(Number(v));
+    }
+</script>
+</body>
+</html>
