@@ -4,6 +4,7 @@ An interactive data visualization dashboard built with ECharts + HTML, based on 
 The dashboard presents insights into global music trends through popularity distribution, emotional landscape, tempo structure, and multidimensional audio feature profiling.
 
 🚀 Features
+
 ✔ Top 20 Most Streamed Tracks
 
 A ranked bar chart of the top 20 songs by streams. Clicking a track automatically opens its radar chart.
