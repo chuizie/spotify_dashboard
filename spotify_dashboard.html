@@ -413,7 +413,7 @@
                     <div>
                         <div class="card-title">节奏与能量：BPM × Energy</div>
                         <div class="card-subtitle">
-                            横轴为节奏速度（BPM），纵轴为能量感。点的大小随播放量增大而增大，用来观察“强者恒强”的头部效应。
+                            横轴为节奏速度（BPM），纵轴为能量感。颜色越亮播放量越高，点大小基本固定，便于观察节奏与能量结构。
                         </div>
                     </div>
                     <div class="pill">节奏结构</div>
@@ -800,10 +800,7 @@ Streams：${formatNumber(p.data.value[3])}
                 {
                     type: "scatter",
                     data: points,
-                    symbolSize: function (val) {
-                        const streams = val[3] || 0;
-                        return 4 + Math.log10(streams + 10) * 1.6;
-                    },
+                    symbolSize: 10,
                     itemStyle: { opacity: 0.85 },
                 },
             ],
@@ -824,10 +821,10 @@ Streams：${formatNumber(p.data.value[3])}
             .map((r) => ({
                 name: r["track_name"],
                 value: [
-                    Number(r["bpm"]),
-                    Number(r["energy_%"]),
-                    Number(r["streams"]),
-                    Number(r["danceability_%"]),
+                    Number(r["bpm"]),           // 0: BPM
+                    Number(r["energy_%"]),      // 1: Energy
+                    Number(r["streams"]),       // 2: Streams（用来上色）
+                    Number(r["danceability_%"]),// 3: Danceability
                 ],
                 artist: r["artist(s)_name"],
             }));
@@ -841,18 +838,22 @@ Streams：${formatNumber(p.data.value[3])}
         const bpmMin = Math.min(...bpmList);
         const bpmMax = Math.max(...bpmList);
 
+        const streamList = points.map((p) => p.value[2]);
+        const streamsMin = Math.min(...streamList);
+        const streamsMax = Math.max(...streamList);
+
         const option = {
             tooltip: {
                 trigger: "item",
                 formatter: function (p) {
                     return `
-<strong>${p.data.name}</strong><br/>
-艺术家：${p.data.artist}<br/>
-BPM：${p.data.value[0]}<br/>
-Energy：${p.data.value[1]}<br/>
-Danceability：${p.data.value[3]}<br/>
-Streams：${formatNumber(p.data.value[2])}
-`;
+    <strong>${p.data.name}</strong><br/>
+    艺术家：${p.data.artist}<br/>
+    BPM：${p.data.value[0]}<br/>
+    Energy：${p.data.value[1]}<br/>
+    Danceability：${p.data.value[3]}<br/>
+    Streams：${formatNumber(p.data.value[2])}
+    `;
                 },
             },
             grid: { left: 60, right: 50, top: 60, bottom: 60 },
@@ -879,17 +880,31 @@ Streams：${formatNumber(p.data.value[2])}
                     lineStyle: { color: "rgba(148,163,184,0.08)" },
                 },
             },
+
+            // 用颜色映射播放量（streams）
+            visualMap: {
+                dimension: 2,              // 第 3 个维度：streams
+                min: streamsMin,
+                max: streamsMax,
+                calculable: false,
+                orient: "vertical",
+                right: 10,
+                top: 30,
+                text: ["播放量高", "播放量低"],
+                textStyle: { color: "#e5e7eb", fontSize: 10 },
+                inRange: {
+                    color: ["#0ea5e9", "#22c55e", "#eab308", "#f97316"],
+                },
+            },
+
             series: [
                 {
                     type: "scatter",
                     data: points,
-                    symbolSize: function (val) {
-                        const streams = val[2] || 0;
-                        return 4 + Math.log10(streams + 10) * 2.2;
-                    },
+                    // 点大小固定，更容易看颜色
+                    symbolSize: 10,
                     itemStyle: {
-                        color: "#22c55e",
-                        opacity: 0.8,
+                        opacity: 0.9,
                     },
                 },
             ],
@@ -897,6 +912,7 @@ Streams：${formatNumber(p.data.value[2])}
 
         tempoChart.setOption(option);
     }
+
 
     // ===== 图 4：雷达基底 =====
     function buildRadarBase() {
